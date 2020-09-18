@@ -19,6 +19,7 @@
 	</properties>
 
 	<dependencies>
+		<!-- Spring&Spring boot dependencies -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
@@ -35,6 +36,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+		<!-- Spock dependencies -->
 
 		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
@@ -57,6 +60,26 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Spring&Spring boot dependencies -->
+
+		<dependency>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-boot-starter</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-swagger-ui</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-data-rest</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -67,8 +90,7 @@
 			</plugin>
 
 			<plugin>
-				<!-- The gmavenplus plugin is used to compile Groovy code. To learn more about this plugin,
-                visit https://github.com/groovy/GMavenPlus/wiki -->
+				<!-- The gmavenplus plugin is used to compile Groovy code. -->
 				<groupId>org.codehaus.gmavenplus</groupId>
 				<artifactId>gmavenplus-plugin</artifactId>
 				<version>1.10.0</version>
