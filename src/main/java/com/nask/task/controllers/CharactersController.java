@@ -6,12 +6,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("characters")
 public class CharactersController {
 
-
     @GetMapping(path = "", produces = "application/json")
     public String getPage(@RequestParam(value = "page", defaultValue = "1") int page) {
         return String.format("Requested page %d", page);
     }
-
 
     @GetMapping(path = "/{id}", produces = "application/json")
     public String getCharacter(@PathVariable int id) {
