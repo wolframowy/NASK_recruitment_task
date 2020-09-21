@@ -1,22 +1,26 @@
 package com.nask.task.services;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.nask.task.models.Page;
 import com.nask.task.models.Person;
 import com.nask.task.models.Planet;
 import com.nask.task.models.Starship;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 @Service
 @Slf4j
@@ -30,67 +34,75 @@ public class Swapi {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Async
-    private <T> CompletableFuture<ResponseEntity<T>> getResource(String resource,Class<T> mapClass, int id)
-            throws InterruptedException {
-        String url = Swapi.LINK + resource + "/{id}/";
-        return CompletableFuture.completedFuture(this.restTemplate.getForEntity(url, mapClass, id));
+    private final WebClient client = WebClient.create(Swapi.LINK);
+
+    private <T> Mono<T> getResource(String resource,Class<T> mapClass, int id) {
+        return client.get()
+                .uri(resource + "/{id}/", id)
+                .retrieve()
+                .bodyToMono(mapClass);
     }
 
-    private <T> T getSpecific(String resource, Class<T> mapClass, int id) {
-        T ret = null;
-        try {
-            ResponseEntity<T> response = this.getResource(resource, mapClass, id).get();
-            if(response.getStatusCode() == HttpStatus.OK) {
-                ret = response.getBody();
-            } else {
-                log.info(String.format("Resource %s with id %d not found", resource, id));
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error(e.getMessage());
-        }
-        return ret;
+    private Mono<Planet> getPlanet(int id) {
+        return this.getResource(Swapi.PLANET_RESOURCE, Planet.class, id);
     }
 
-    private Planet getPlanet(int id) {
-        return this.getSpecific(Swapi.PLANET_RESOURCE, Planet.class, id);
-    }
-
-    private Starship getStarship(int id) {
-        return this.getSpecific(Swapi.STARSHIP_RESOURCE,Starship.class, id);
+    private Mono<Starship> getStarship(int id) {
+        return this.getResource(Swapi.STARSHIP_RESOURCE,Starship.class, id);
     }
 
     /**
      * @param id - id of person to fetch
-     * @return Person - object if requested person exists else null
+     * @return Mono<Person> - mono object
      */
-    public Person getPerson(int id) {
-        Person ret = this.getSpecific(Swapi.PEOPLE_RESOURCE, Person.class, id);
-        // If returned person is not null then fill additional fields.
-        if (ret != null) {
-            ret.setId(Integer.toString(id));
-            Pattern p = Pattern.compile("/(\\d+)/\\z");
-            Matcher m;
-            String homeworldUrl = ret.getHomeworldUrl();
-            if (homeworldUrl != null) {
-                m = p.matcher(homeworldUrl);
-                if (m.find()) {
-                    ret.setHomeworld(getPlanet(Integer.parseInt(m.group(1))));
-                }
-            }
-            String[] starshipsUrls = ret.getStarshipsUrls();
-            if (starshipsUrls.length > 0) {
-                Starship[] starships = new Starship[starshipsUrls.length];
-                for (int i = 0; i < starshipsUrls.length; ++i) {
-                    m = p.matcher(starshipsUrls[i]);
-                    if (m.find()) {
-                        starships[i] = getStarship(Integer.parseInt(m.group(1)));
+    public Mono<Person> getPerson(int id) {
+        final Pattern p = Pattern.compile("/(\\d+)/\\z");
+        final Matcher[] m = new Matcher[1];
+        return this.getResource(Swapi.PEOPLE_RESOURCE, Person.class, id)
+                .doOnError(ex -> {
+                    String msg = String.format("Requested person with id %d not found", id);
+                    log.info(msg);})
+                .flatMap(person -> {
+                    person.setId(Integer.toString(id));
+                    String homeworldUrl = person.getHomeworldUrl();
+                    if (homeworldUrl != null) {
+                        m[0] = p.matcher(homeworldUrl);
+                        if (m[0].find()) {
+                            return getPlanet(Integer.parseInt(m[0].group(1)))
+                                    .doOnSuccess(person::setHomeworld).thenReturn(person);
+                        }
                     }
-                }
-                ret.setStarships(starships);
-            }
+                    return Mono.just(person);})
+                .flatMap(person -> {
+                    String[] starshipsUrls = person.getStarshipsUrls();
+                    List<Mono<Starship>> mList = new ArrayList<>();
+                    if (starshipsUrls.length > 0) {
+                        for (String starshipsUrl : starshipsUrls) {
+                            m[0] = p.matcher(starshipsUrl);
+                            if (m[0].find()) {
+                                mList.add(getStarship(Integer.parseInt(m[0].group(1))));
+                            }
+                        }
+                    }
+                    return Flux.concat(mList).parallel(4).runOn(Schedulers.parallel())
+                            .doOnNext(person::addStarship).then().thenReturn(person);
+                });
+    }
+
+    /**
+     * @param pageNum - number of requested page
+     * @return Mono<Page>
+     */
+    public Mono<Page> generatePage(int pageNum) {
+        Page page = new Page();
+        List<Mono<Person>> pList = new ArrayList<>();
+        int elPerPage = page.getElementsPerPage();
+        int start = Math.max(1, (pageNum - 1) * elPerPage + 1);
+        for(int i = start; i < start + elPerPage; ++i) {
+            pList.add(getPerson(i));
         }
-        return ret;
+        return Flux.concat(pList).parallel(4).runOn(Schedulers.parallel())
+                .doOnNext(page::addElement).then().thenReturn(page);
     }
 
 }

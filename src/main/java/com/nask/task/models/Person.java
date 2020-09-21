@@ -3,7 +3,8 @@ package com.nask.task.models;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class Person {
@@ -26,7 +27,7 @@ public class Person {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Planet homeworld;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private Starship[] starships;
+    private final List<Starship> starships = new ArrayList<>();
 
     public String getName() {
         return this.name;
@@ -130,11 +131,11 @@ public class Person {
         this.homeworld = homeworld;
     }
 
-    public Starship[] getStarships() {
+    public List<Starship> getStarships() {
         return starships;
     }
 
-    public void setStarships(Starship[] starships) {
-        this.starships = Arrays.copyOf(starships, starships.length);
+    public void addStarship(Starship starship) {
+        this.starships.add(starship);
     }
 }
