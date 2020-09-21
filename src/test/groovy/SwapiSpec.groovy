@@ -11,7 +11,7 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
-
+// TODO: Fix test cases!!!
 @ContextConfiguration(classes= TaskApplication.class)
 class SwapiSpec extends Specification{
 

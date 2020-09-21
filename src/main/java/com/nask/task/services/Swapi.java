@@ -36,6 +36,7 @@ public class Swapi {
 
     private final WebClient client = WebClient.create(Swapi.LINK);
 
+    // TODO: Add error handling!!!
     private <T> Mono<T> getResource(String resource,Class<T> mapClass, int id) {
         return client.get()
                 .uri(resource + "/{id}/", id)
