@@ -20,11 +20,11 @@ public class Person {
     private String gender;
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String homeworldUrl;
+    private String homeworldUrl = "";
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private List<String> starshipsUrls;
+    private List<String> starshipsUrls = new ArrayList<>();
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String url;
+    private String url = "";
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Planet homeworld;

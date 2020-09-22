@@ -3,6 +3,7 @@ package com.nask.task.models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Page {
@@ -12,7 +13,7 @@ public class Page {
     private int count;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private int pages;
-    private List<Person> elements;
+    private List<Person> elements = new ArrayList<>();
 
     public int getElementsPerPage() {
         return elementsPerPage;

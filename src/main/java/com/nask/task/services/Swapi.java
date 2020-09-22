@@ -38,8 +38,8 @@ public class Swapi {
         }
     }
 
-    private void handleInvalidUrlException(InvalidUrlException e) {
-        log.error(e.getMessage());
+    private void handleInvalidUrlException(InvalidUrlException e, Object object) {
+        log.error(e.getMessage() + " on object of " + object.getClass());
     }
 
 
@@ -63,6 +63,9 @@ public class Swapi {
 
     private int getId(String url) throws Swapi.InvalidUrlException {
         Pattern p = Pattern.compile("/(\\d+)/\\z");
+        if (url == null) {
+            throw new Swapi.InvalidUrlException("Url is null");
+        }
         Matcher m = p.matcher(url);
         if (m.find()) {
             return Integer.parseInt(m.group(1));
@@ -73,19 +76,24 @@ public class Swapi {
     private Mono<Person> fillPersonInfo(Mono<Person> personMono) {
         return personMono
                 .flatMap(person -> {
-                    person.setId(Integer.toString(this.getId(person.getUrl())));
                     try {
+                        person.setId(Integer.toString(this.getId(person.getUrl())));
+                    } catch (InvalidUrlException e) {
+                        this.handleInvalidUrlException(e, person);
+                    }
+                    try {
+
                         int homeworldId = getId(person.getHomeworldUrl());
                         return getPlanet(homeworldId)
                                 .doOnSuccess(person::setHomeworld).thenReturn(person);
                     } catch (InvalidUrlException e) {
-                        this.handleInvalidUrlException(e);
+                        this.handleInvalidUrlException(e, person);
                     }
                     return Mono.just(person);})
                 .flatMap(person -> Flux.fromIterable(person.getStarshipsUrls())
                     .flatMap(s -> this.getStarship(this.getId(s)))
                     .onErrorContinue(InvalidUrlException.class,
-                            (e, v) -> this.handleInvalidUrlException((InvalidUrlException) e))
+                            (e, v) -> this.handleInvalidUrlException((InvalidUrlException) e, v))
                     .doOnNext(person::addStarship).then().thenReturn(person));
     }
 
