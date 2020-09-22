@@ -32,8 +32,10 @@ public class Page {
         return pages;
     }
 
+    // There was a jackson/spring issue with having setElements and getElements
+    // while they have different JsonProperties which was recommended to fix by changing one of the method names
     @JsonProperty("results")
-    public void setElements(List<Person> elements) {
+    public void setResults(List<Person> elements) {
         this.elements = elements;
     }
 
