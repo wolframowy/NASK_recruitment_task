@@ -37,6 +37,7 @@ public class Page {
         this.elements = elements;
     }
 
+    @JsonProperty("elements")
     public List<Person> getElements() {
         return elements;
     }

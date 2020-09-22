@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
-import javax.servlet.http.HttpServletRequest;
 
 @RestController
 @Slf4j
@@ -21,15 +20,22 @@ public class CharactersController {
     @Autowired
     private Swapi swapi;
 
+    private int checkPassedValue(int value) {
+        if(value < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided value can't be below 1");
+        }
+        return value;
+    }
+
     @GetMapping(path = "", produces = "application/json")
     public ResponseEntity<Mono<Page>> getPage(@RequestParam(value = "page", defaultValue = "1") int pageNum) {
-        Mono<Page> page = swapi.generatePage(pageNum);
+        Mono<Page> page = swapi.generatePage(checkPassedValue(pageNum));
         return new ResponseEntity<>(page, HttpStatus.OK);
     }
 
     @GetMapping(path = "/{id}", produces = "application/json")
     public ResponseEntity<Mono<Person>> getCharacter(@PathVariable int id) {
-        Mono<Person> person = swapi.getPerson(id);
+        Mono<Person> person = swapi.getPerson(checkPassedValue(id));
         return new ResponseEntity<>(person, HttpStatus.OK);
     }
 
