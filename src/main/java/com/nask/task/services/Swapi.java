@@ -1,7 +1,5 @@
 package com.nask.task.services;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -10,38 +8,49 @@ import com.nask.task.models.Person;
 import com.nask.task.models.Planet;
 import com.nask.task.models.Starship;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 
 @Service
 @Slf4j
 public class Swapi {
 
-    private static final String LINK = "https://swapi.dev/api/";
     private static final String PEOPLE_RESOURCE = "people";
     private static final String PLANET_RESOURCE = "planets";
     private static final String STARSHIP_RESOURCE = "starships";
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final WebClient client;
 
-    private final WebClient client = WebClient.create(Swapi.LINK);
+    public Swapi(@Value("${swapi.url}") String swapiUrl){
+        client = WebClient.create(swapiUrl);
+    }
 
-    // TODO: Add error handling!!!
+    public static class InvalidUrlException extends RuntimeException {
+        public InvalidUrlException(String errorMessage) {
+            super(errorMessage);
+        }
+    }
+
+    private void handleInvalidUrlException(InvalidUrlException e) {
+        log.error(e.getMessage());
+    }
+
+
     private <T> Mono<T> getResource(String resource,Class<T> mapClass, int id) {
         return client.get()
                 .uri(resource + "/{id}/", id)
                 .retrieve()
-                .bodyToMono(mapClass);
+                .bodyToMono(mapClass)
+                .doOnError(ex -> {
+                    String msg = String.format("Requested resource '%s' with id '%d' not found", resource, id);
+                    log.error(msg);});
     }
 
     private Mono<Planet> getPlanet(int id) {
@@ -52,42 +61,45 @@ public class Swapi {
         return this.getResource(Swapi.STARSHIP_RESOURCE,Starship.class, id);
     }
 
+    private int getId(String url) throws Swapi.InvalidUrlException {
+        Pattern p = Pattern.compile("/(\\d+)/\\z");
+        Matcher m = p.matcher(url);
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        throw new Swapi.InvalidUrlException(String.format("%s url doesn't have a valid 'id' field", url));
+    }
+
+    private Mono<Person> fillPersonInfo(Mono<Person> personMono) {
+        return personMono
+                .flatMap(person -> {
+                    person.setId(Integer.toString(this.getId(person.getUrl())));
+                    try {
+                        int homeworldId = getId(person.getHomeworldUrl());
+                        return getPlanet(homeworldId)
+                                .doOnSuccess(person::setHomeworld).thenReturn(person);
+                    } catch (InvalidUrlException e) {
+                        this.handleInvalidUrlException(e);
+                    }
+                    return Mono.just(person);})
+                .flatMap(person -> Flux.fromIterable(person.getStarshipsUrls())
+                    .flatMap(s -> this.getStarship(this.getId(s)))
+                    .onErrorContinue(InvalidUrlException.class,
+                            (e, v) -> this.handleInvalidUrlException((InvalidUrlException) e))
+                    .doOnNext(person::addStarship).then().thenReturn(person));
+    }
+
     /**
      * @param id - id of person to fetch
      * @return Mono<Person> - mono object
      */
     public Mono<Person> getPerson(int id) {
-        final Pattern p = Pattern.compile("/(\\d+)/\\z");
-        final Matcher[] m = new Matcher[1];
-        return this.getResource(Swapi.PEOPLE_RESOURCE, Person.class, id)
-                .doOnError(ex -> {
-                    String msg = String.format("Requested person with id %d not found", id);
-                    log.info(msg);})
-                .flatMap(person -> {
-                    person.setId(Integer.toString(id));
-                    String homeworldUrl = person.getHomeworldUrl();
-                    if (homeworldUrl != null) {
-                        m[0] = p.matcher(homeworldUrl);
-                        if (m[0].find()) {
-                            return getPlanet(Integer.parseInt(m[0].group(1)))
-                                    .doOnSuccess(person::setHomeworld).thenReturn(person);
-                        }
-                    }
-                    return Mono.just(person);})
-                .flatMap(person -> {
-                    String[] starshipsUrls = person.getStarshipsUrls();
-                    List<Mono<Starship>> mList = new ArrayList<>();
-                    if (starshipsUrls.length > 0) {
-                        for (String starshipsUrl : starshipsUrls) {
-                            m[0] = p.matcher(starshipsUrl);
-                            if (m[0].find()) {
-                                mList.add(getStarship(Integer.parseInt(m[0].group(1))));
-                            }
-                        }
-                    }
-                    return Flux.concat(mList).parallel(4).runOn(Schedulers.parallel())
-                            .doOnNext(person::addStarship).then().thenReturn(person);
-                });
+        Mono<Person> person = getResource(Swapi.PEOPLE_RESOURCE, Person.class, id).doOnError(WebClientResponseException.class,
+                e -> {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+                })
+                .onErrorStop();
+        return fillPersonInfo(person);
     }
 
     /**
@@ -95,15 +107,18 @@ public class Swapi {
      * @return Mono<Page>
      */
     public Mono<Page> generatePage(int pageNum) {
-        Page page = new Page();
-        List<Mono<Person>> pList = new ArrayList<>();
-        int elPerPage = page.getElementsPerPage();
-        int start = Math.max(1, (pageNum - 1) * elPerPage + 1);
-        for(int i = start; i < start + elPerPage; ++i) {
-            pList.add(getPerson(i));
-        }
-        return Flux.concat(pList).parallel(4).runOn(Schedulers.parallel())
-                .doOnNext(page::addElement).then().thenReturn(page);
+        return client.get()
+                .uri(String.format("people/?page=%d", pageNum))
+                .retrieve()
+                .bodyToMono(Page.class)
+                .doOnError(WebClientResponseException.class,
+                        e -> {
+                            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+                        })
+                .onErrorStop()
+                .flatMap(page -> Flux.fromIterable(page.getElements())
+                            .flatMap(person -> this.fillPersonInfo(Mono.just(person)))
+                            .then(Mono.just(page)));
     }
 
 }

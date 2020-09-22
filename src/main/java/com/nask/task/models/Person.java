@@ -22,7 +22,9 @@ public class Person {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String homeworldUrl;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String[] starshipsUrls;
+    private List<String> starshipsUrls;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String url;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Planet homeworld;
@@ -114,12 +116,12 @@ public class Person {
         this.homeworldUrl = homeworldUrl;
     }
 
-    public String[] getStarshipsUrls() {
+    public List<String> getStarshipsUrls() {
         return starshipsUrls;
     }
 
     @JsonProperty("starships")
-    public void setStarshipsUrls(String[] starshipsUrls) {
+    public void setStarshipsUrls(List<String> starshipsUrls) {
         this.starshipsUrls = starshipsUrls;
     }
 
@@ -137,5 +139,13 @@ public class Person {
 
     public void addStarship(Starship starship) {
         this.starships.add(starship);
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 }

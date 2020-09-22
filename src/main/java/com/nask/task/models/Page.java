@@ -1,29 +1,39 @@
 package com.nask.task.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class Page {
 
-    private final int count = 82;
     @JsonIgnore
     private final int elementsPerPage = 10;
-    private final int pages = (int) Math.ceil(this.count / (double) this.elementsPerPage);
-
-    private final List<Person> elements = new ArrayList<>();
-
-    public int getCount() {
-        return count;
-    }
+    private int count;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private int pages;
+    private List<Person> elements;
 
     public int getElementsPerPage() {
         return elementsPerPage;
     }
 
+    public int getCount() {
+        return count;
+    }
+
+    public void setCount(int count) {
+        this.pages = (int) Math.ceil(count / (double) this.elementsPerPage);
+        this.count = count;
+    }
+
     public int getPages() {
         return pages;
+    }
+
+    @JsonProperty("results")
+    public void setElements(List<Person> elements) {
+        this.elements = elements;
     }
 
     public List<Person> getElements() {

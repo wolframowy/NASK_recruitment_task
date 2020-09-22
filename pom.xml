@@ -43,6 +43,12 @@
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Spock dependencies -->
 
 		<dependency>
@@ -65,8 +71,6 @@
 			<version>2.0-M3-groovy-3.0</version>
 			<scope>test</scope>
 		</dependency>
-
-		<!-- Spring&Spring boot dependencies -->
 
 		<dependency>
 			<groupId>io.springfox</groupId>
@@ -93,6 +97,21 @@
 			<artifactId>lombok</artifactId>
 			<version>1.18.12</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<!-- MockServer for mocking server responses to WebClient -->
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.0.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>mockwebserver</artifactId>
+			<version>4.0.1</version>
+			<scope>test</scope>
 		</dependency>
 
 	</dependencies>
