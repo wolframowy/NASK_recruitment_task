@@ -10,12 +10,14 @@ import com.nask.task.models.Starship;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 
 @Service
@@ -91,10 +93,13 @@ public class Swapi {
                     }
                     return Mono.just(person);})
                 .flatMap(person -> Flux.fromIterable(person.getStarshipsUrls())
+                    .parallel(4).runOn(Schedulers.parallel())
                     .flatMap(s -> this.getStarship(this.getId(s)))
+                    .doOnNext(person::addStarship)
+                    .sequential()
                     .onErrorContinue(InvalidUrlException.class,
-                            (e, v) -> this.handleInvalidUrlException((InvalidUrlException) e, v))
-                    .doOnNext(person::addStarship).then().thenReturn(person));
+                        (e, v) -> this.handleInvalidUrlException((InvalidUrlException) e, v))
+                    .then(Mono.just(person)));
     }
 
     /**
@@ -125,7 +130,9 @@ public class Swapi {
                         })
                 .onErrorStop()
                 .flatMap(page -> Flux.fromIterable(page.getElements())
+                            .parallel(4).runOn(Schedulers.parallel())
                             .flatMap(person -> this.fillPersonInfo(Mono.just(person)))
+                            .sequential()
                             .then(Mono.just(page)));
     }
 
