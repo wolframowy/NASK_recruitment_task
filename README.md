@@ -24,6 +24,9 @@ mvn clean install spring-boot:run
 
 Above script will install all dependencies and run a dev server listening on `localhost:8080`.
 
+Additionally, application exposes swagger documentation of rest endpoints at `/swagger-ui/`.
+Prometheus scrape page is exposed at `/actuator/prometheus/`.
+
 ### Initial Configuration
 
 Initial server port on which application is listening is 8080,
