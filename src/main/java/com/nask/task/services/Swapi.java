@@ -2,7 +2,6 @@ package com.nask.task.services;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import com.nask.task.models.Page;
 import com.nask.task.models.Person;
 import com.nask.task.models.Planet;
@@ -10,7 +9,6 @@ import com.nask.task.models.Starship;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
