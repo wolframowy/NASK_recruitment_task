@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.nask</groupId>
 	<artifactId>task</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>task</name>
 	<description>NASK recruitment project</description>
 
